@@ -21,7 +21,7 @@ from telegram.utils.helpers import mention_html
 # CONFIG
 # ═══════════════════════════════════════════════════════
 
-BOT_TOKEN     = os.getenv("BOT_TOKEN",     "8811538930:AAFzVFB1IIkQ5cTdwxmuq51rQMqAx-9vJlg")
+BOT_TOKEN     = os.getenv("BOT_TOKEN",     "8811538930:AAFcdFaJ0hU92dWSTWnuYYxjPQ0DmtNMzYw")
 LOGS_GROUP_ID = int(os.getenv("LOGS_GROUP_ID", "-1002854086015"))
 OWNER_ID      = int(os.getenv("OWNER_ID",  "6663845789"))
 MONGO_URL     = os.getenv("MONGO_URL",     "mongodb://universal:universal@ac-5uptcsf-shard-00-00.xbri4n0.mongodb.net:27017,ac-5uptcsf-shard-00-01.xbri4n0.mongodb.net:27017,ac-5uptcsf-shard-00-02.xbri4n0.mongodb.net:27017/?ssl=true&replicaSet=atlas-nprng0-shard-0&authSource=admin&appName=universal")
