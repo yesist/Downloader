@@ -24,9 +24,9 @@ from telegram.utils.helpers import mention_html
 BOT_TOKEN     = os.getenv("BOT_TOKEN",     "8811538930:AAFcdFaJ0hU92dWSTWnuYYxjPQ0DmtNMzYw")
 LOGS_GROUP_ID = int(os.getenv("LOGS_GROUP_ID", "-1002854086015"))
 OWNER_ID      = int(os.getenv("OWNER_ID",  "6663845789"))
-MONGO_URL     = os.getenv("MONGO_URL",     "mongodb://universal:universal@ac-5uptcsf-shard-00-00.xbri4n0.mongodb.net:27017,ac-5uptcsf-shard-00-01.xbri4n0.mongodb.net:27017,ac-5uptcsf-shard-00-02.xbri4n0.mongodb.net:27017/?ssl=true&replicaSet=atlas-nprng0-shard-0&authSource=admin&appName=universal")
+MONGO_URL     = os.getenv("MONGO_URL", "mongodb+srv://botnet:botnet@cluster0.izjogcb.mongodb.net/")
 DOWNLOAD_DIR  = os.getenv("DOWNLOAD_DIR",  "downloads")
-LOCAL_API_URL = os.getenv("LOCAL_API_URL", "http://localhost:8081/bot")
+LOCAL_API_URL = os.getenv("LOCAL_API_URL", "")
 RAPIDAPI_KEY  = os.getenv("RAPIDAPI_KEY",  "257958bfffmsh1c707de1d328bc2p1863c8jsn9e469f4b5a9d")
 
 # ═══════════════════════════════════════════════════════
@@ -218,7 +218,7 @@ def instagram_profile_lookup(username: str) -> dict:
         "is_verified":    user.get("is_verified", False),
         "is_private":     user.get("is_private", False),
         "is_business":    user.get("is_business", False),
-        "profile_pic":    user.get("profile_pic_url", ""),
+        "profile_pic":    user.get("hd_profile_pic_url_info", {}).get("url") or user.get("profile_pic_url", ""),
         "external_url":   user.get("external_url", ""),
     }
 
@@ -416,26 +416,28 @@ def ig_download(url: str) -> list[str]:
     except Exception as e:
         logger.warning(f"IG yt-dlp failed: {e}")
 
-    # RapidAPI fallback
+    # RapidAPI fallback — instagram120 links endpoint
+    # Clean URL — remove query params
+    clean_url = url.split("?")[0].rstrip("/") + "/"
     resp = rapidapi_post(
         "instagram120.p.rapidapi.com",
-        "https://instagram120.p.rapidapi.com/api/instagram/posts",
-        json_body={"url": url}
+        "https://instagram120.p.rapidapi.com/api/instagram/links",
+        json_body={"url": clean_url}
     )
     media_urls = []
-    if isinstance(resp, list):
-        for item in resp:
-            u = item.get("url") or item.get("video_url") or item.get("image_url")
-            if u:
+    media_urls = []
+    data = resp if isinstance(resp, list) else [resp]
+    for item in data:
+        urls_list = item.get("urls", [])
+        if urls_list:
+            u = urls_list[0].get("url", "")
+            if u and u.startswith("http"):
                 media_urls.append(u)
-    elif isinstance(resp, dict):
-        for key in ["url", "video_url", "image_url"]:
-            v = resp.get(key)
-            if isinstance(v, str) and v:
-                media_urls.append(v)
-            elif isinstance(v, list):
-                media_urls.extend([x for x in v if isinstance(x, str)])
-
+                break
+        else:
+            u = item.get("url") or item.get("video_url")
+            if u and isinstance(u, str):
+                media_urls.append(u)
     if not media_urls:
         raise ValueError("Instagram: no media found")
 
@@ -636,7 +638,7 @@ def start(update: Update, context: CallbackContext) -> None:
         )],
     ])
     update.message.reply_photo(
-        photo="https://i.ibb.co/9sH98zC/file-248.jpg",
+        photo="https://i.postimg.cc/rsNzzpfh/IMG-20260802-053121-636.jpg",
         caption=(
             "👋 <b>Welcome to SaveNode!</b>\n\n"
             "Send me any link and I'll download it for you.\n\n"
@@ -775,6 +777,8 @@ def handle_message(update: Update, context: CallbackContext) -> None:
             files = tiktok_download(text)
         elif platform == "pinterest":
             files = pinterest_download(text)
+        elif platform in ["twitter", "facebook", "reddit"]:
+            files = generic_download(text, platform)
         else:
             files = generic_download(text, platform)
         send_files(update, files)
@@ -1005,12 +1009,7 @@ def error_handler(update: Update, context: CallbackContext) -> None:
 def main() -> None:
     load_all_cookies()
 
-    updater = Updater(
-        BOT_TOKEN,
-        use_context=True,
-        base_url=LOCAL_API_URL,
-        base_file_url=LOCAL_API_URL.replace("/bot", "/file/bot"),
-    )
+    updater = Updater(BOT_TOKEN, use_context=True)
     dp = updater.dispatcher
 
     dp.add_handler(CommandHandler("start",       start))
